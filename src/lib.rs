@@ -118,7 +118,7 @@ pub fn initialize_false_values<S: ToString>(values: impl IntoIterator<Item = S>)
 /// the thread it was parsed from.
 ///
 /// ***note*** The parsing is case-insensitive
-#[derive(Copy, Clone, Debug, PartialEq, Default)]
+#[derive(Copy, Clone, PartialEq, Default, Hash, Eq)]
 pub struct LexicalBool(bool);
 
 impl std::ops::Deref for LexicalBool {
@@ -131,6 +131,18 @@ impl std::ops::Deref for LexicalBool {
 impl PartialEq<bool> for LexicalBool {
     fn eq(&self, other: &bool) -> bool {
         *other == self.0
+    }
+}
+
+impl std::fmt::Display for LexicalBool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Debug for LexicalBool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -207,6 +219,7 @@ impl std::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn parse_true() {
         let inputs = &[("true", true), ("t", true), ("1", true), ("yes", true)];
@@ -257,5 +270,39 @@ mod tests {
         for &(input, ok) in inputs {
             assert_eq!(input.parse::<LexicalBool>().unwrap(), ok);
         }
+    }
+
+    #[test]
+    fn display_and_debug() {
+        assert!(initialize_false_values(&["this is false", "nope", "NOPE"]));
+
+        let inputs = &[
+            ("this is false", false),
+            ("nope", false),
+            ("NOPE", false),
+            // keep the default true
+            ("true", true),
+            ("t", true),
+            ("1", true),
+            ("yes", true),
+        ];
+
+        for (input, expected) in inputs {
+            let b = input.parse::<LexicalBool>().unwrap();
+            assert_eq!(format!("{}", b), format!("{}", expected));
+            assert_eq!(format!("{:?}", b), format!("{:?}", expected));
+        }
+    }
+
+    #[test]
+    fn trait_impls() {
+        use std::collections::HashSet;
+        let mut set: HashSet<LexicalBool> = HashSet::default();
+
+        assert!(set.insert("true".parse().unwrap()));
+        assert!(set.insert("false".parse().unwrap()));
+
+        assert!(!set.insert("true".parse().unwrap()));
+        assert!(!set.insert("false".parse().unwrap()));
     }
 }
